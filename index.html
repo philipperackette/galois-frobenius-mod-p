@@ -1,0 +1,351 @@
+<!doctype html>
+<html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Frobenius modulo p</title>
+<style>
+:root{--bg:#0e1a44;--panel:#fbfaf4;--ink:#171717;--teal:#0f5b55;--garnet:#8a1d2c;--blue:#1d4f91;--gold:#c79b2b;--line:#d8d2c4}
+*{box-sizing:border-box}body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:#f3f1ea;color:var(--ink)}
+header{background:var(--bg);color:white;padding:18px 24px;border-bottom:5px solid var(--gold)}
+header h1{margin:0;font-size:1.55rem;font-weight:650}header p{margin:.35rem 0 0;opacity:.9}
+main{padding:20px;max-width:1100px;margin:0 auto}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px;box-shadow:0 2px 10px #0001;margin-bottom:16px}
+.panel h2{margin:.1rem 0 1rem;font-size:1.1rem;color:var(--teal)}
+.controls{display:flex;gap:14px;flex-wrap:wrap;align-items:end;margin-bottom:12px}
+.control{display:flex;flex-direction:column;gap:4px}
+label{font-weight:600;font-size:.92rem}
+input,select,button{font:inherit;border:1px solid #bbb;border-radius:8px;padding:7px 9px;background:white}
+button{background:var(--teal);color:white;border-color:var(--teal);cursor:pointer}
+button.secondary{background:white;color:var(--teal);border-color:var(--teal)}
+.note{font-size:.92rem;color:#444;line-height:1.5}
+.small{font-size:.85rem;color:#555}
+.mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+.info{border-left:4px solid var(--blue);padding:8px 10px;background:#f5f9ff;margin:8px 0;border-radius:0 6px 6px 0}
+.success{border-left:4px solid var(--teal);padding:8px 10px;background:#f5fffb;margin:8px 0;border-radius:0 6px 6px 0}
+.warn{border-left:4px solid var(--garnet);padding:8px 10px;background:#fff7f7;margin:8px 0;border-radius:0 6px 6px 0}
+.badge{display:inline-block;border-radius:999px;padding:2px 10px;margin:2px;font-size:.88rem;background:#e8e3d7}
+.badge.ok{background:#d8f1e1;color:var(--teal)}
+.badge.no{background:#f4d5d5;color:var(--garnet)}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+@media(max-width:700px){.grid2{grid-template-columns:1fr}}
+svg{display:block;max-width:100%;height:auto}
+/* Table de permutation */
+.perm-table{border-collapse:collapse;margin:10px 0;font-size:.92rem}
+.perm-table td,.perm-table th{border:1px solid var(--line);padding:5px 10px;text-align:center;min-width:48px}
+.perm-table th{background:#e8e3d7;font-weight:700;color:var(--teal)}
+.perm-table td.prim{background:#d8f1e1;font-weight:600}
+.perm-table td.notprim{background:#fde8f0;color:#888}
+/* Poly display */
+.poly-row{display:flex;gap:6px;flex-wrap:wrap;margin:6px 0;align-items:center}
+.coeff-box{border:1px solid var(--line);border-radius:6px;padding:4px 8px;background:white;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.9rem;min-width:36px;text-align:center}
+.coeff-box.changed{background:#fff3cc;border-color:var(--gold);font-weight:700}
+</style>
+</head><body>
+<header>
+  <h1>Frobenius modulo p</h1>
+  <p>Identité g(X)<sup>p</sup> ≡ g(X<sup>p</sup>) mod p — action sur les racines primitives — irréductibilité de Φ<sub>n</sub>.</p>
+</header>
+<main>
+
+<!-- Section 1 : identité de Frobenius sur les polynômes -->
+<section class="panel">
+  <h2>§ 1 — L'identité spectaculaire : g(X)<sup>p</sup> ≡ g(X<sup>p</sup>) mod p</h2>
+  <p class="note">Pour tout polynôme g ∈ ℤ[X] et tout premier p, les coefficients de g(X)<sup>p</sup> et de g(X<sup>p</sup>) sont congrus modulo p. C'est une conséquence du fait que les coefficients binomiaux <span class="mono">C(p,k)</span> sont divisibles par p pour 0 &lt; k &lt; p.</p>
+  <div class="controls">
+    <div class="control">
+      <label for="poly">Coefficients de g (degré décroissant, entiers)</label>
+      <input id="poly" value="1 1 1" size="24" placeholder="1 1 1 pour X²+X+1">
+    </div>
+    <div class="control">
+      <label for="pFrob">Premier p</label>
+      <select id="pFrob">
+        <option>2</option><option selected>3</option><option>5</option><option>7</option><option>11</option><option>13</option>
+      </select>
+    </div>
+    <button id="goFrob">Calculer</button>
+  </div>
+  <div class="info small">Exemples : <b>1 1</b> pour X+1 · <b>1 0 1</b> pour X²+1 · <b>1 1 1</b> pour X²+X+1 · <b>1 0 0 0 -2</b> pour X⁴−2</div>
+  <div id="frobResult"></div>
+</section>
+
+<!-- Section 2 : action de Frobenius sur les racines primitives -->
+<section class="panel">
+  <h2>§ 2 — Action de σ<sub>p</sub> : ζ ↦ ζ<sup>p</sup> sur les racines de l'unité</h2>
+  <p class="note">Les racines primitives n-ièmes de l'unité sont les e<sup>2iπk/n</sup> avec pgcd(k,n) = 1. L'automorphisme σ<sub>p</sub> envoie ζ<sub>n</sub> sur ζ<sub>n</sub><sup>p</sup>, ce qui revient à multiplier l'exposant par p modulo n.</p>
+  <div class="controls">
+    <div class="control">
+      <label for="nRoots">n (racines de l'unité)</label>
+      <select id="nRoots">
+        <option>3</option><option>4</option><option selected>5</option>
+        <option>6</option><option>7</option><option>8</option><option>9</option>
+        <option>10</option><option>12</option><option>15</option>
+      </select>
+    </div>
+    <div class="control">
+      <label for="pAction">Premier p</label>
+      <select id="pAction">
+        <option>2</option><option>3</option><option selected>2</option>
+        <option>5</option><option>7</option><option>11</option>
+      </select>
+    </div>
+    <button id="goAction">Afficher</button>
+  </div>
+  <div class="grid2">
+    <div>
+      <div id="actionTable"></div>
+    </div>
+    <div>
+      <svg id="rootSvg" viewBox="0 0 320 320" width="320" height="320"></svg>
+    </div>
+  </div>
+</section>
+
+<!-- Section 3 : orbite de 1 sous les puissances de sigma_p = transitvité -->
+<section class="panel">
+  <h2>§ 3 — Orbite de ζ<sub>n</sub> sous les itérés de σ<sub>p</sub></h2>
+  <p class="note">Si l'orbite de 1 (l'exposant) sous la multiplication par p modulo n est <em>toute</em> l'ensemble des exposants premiers à n, alors σ<sub>p</sub> est transitif sur les racines primitives. C'est la clé de l'irréductibilité de Φ<sub>n</sub> : en réduisant mod p, on montre que tout facteur irréductible de Φ<sub>n</sub> sur ℚ est cyclotomiquement inséparable des autres.</p>
+  <div id="orbitResult"></div>
+</section>
+
+<div class="linkbar" style="margin-top:8px;font-size:.9rem;color:#555">Applet statique HTML/JS pur — compagnon du chapitre 13 (irréductibilité de Φ<sub>n</sub>).</div>
+</main>
+<script>
+// =====================================================================
+// Utilitaires
+// =====================================================================
+function gcd(a,b){a=Math.abs(a);b=Math.abs(b);while(b){[a,b]=[b,a%b];}return a;}
+function mod(a,n){return((a%n)+n)%n;}
+function isPrime(n){if(n<2)return false;for(let d=2;d*d<=n;d++)if(n%d===0)return false;return true;}
+function coprimes(n){const r=[];for(let k=1;k<n;k++)if(gcd(k,n)===1)r.push(k);return r;}
+
+// Coefficients binomiaux mod p (pour montrer que C(p,k) ≡ 0)
+function binomModP(p){
+  const res=[];
+  for(let k=0;k<=p;k++){
+    // calcul exact du binome C(p,k)
+    let num=1n,den=1n;
+    for(let i=0;i<k;i++){num*=BigInt(p-i);den*=BigInt(i+1);}
+    const b=Number(num/den);
+    res.push({k,b,modp:mod(b,p)});
+  }
+  return res;
+}
+
+// Multiplication de polynomes a coefficients entiers
+function polyMul(A,B){
+  const n=A.length+B.length-1;
+  const C=new Array(n).fill(0);
+  for(let i=0;i<A.length;i++)for(let j=0;j<B.length;j++)C[i+j]+=A[i]*B[j];
+  return C;
+}
+function polyModP(A,p){return A.map(c=>mod(c,p));}
+function polyStr(A,varname='X'){
+  const n=A.length-1;
+  let s=[];
+  for(let i=0;i<=n;i++){
+    const a=A[i],deg=n-i;
+    if(a===0)continue;
+    const coefStr=deg===0?String(Math.abs(a)):Math.abs(a)===1?'':String(Math.abs(a));
+    const xStr=deg===0?'':deg===1?varname:varname+'<sup>'+deg+'</sup>';
+    const sign=a<0?(s.length===0?'−':' − '):(s.length===0?'':' + ');
+    s.push(sign+coefStr+xStr);
+  }
+  return s.join('')||'0';
+}
+
+// g(X)^p mod p : calculer par p multiplications
+function polyPow(g,pw,p){
+  let result=[1];
+  for(let i=0;i<pw;i++){result=polyMul(result,g);}
+  return polyModP(result,p);
+}
+// g(X^p) mod p : substituer X -> X^p (ecart de degre p)
+function polySubstXp(g,p){
+  const n=g.length-1;
+  const result=new Array(n*p+1).fill(0);
+  for(let i=0;i<=n;i++)result[i*p]=mod(g[i],p);
+  return result;
+}
+
+// =====================================================================
+// Section 1 : identité de Frobenius
+// =====================================================================
+function computeFrob(){
+  const rawPoly=$('poly').value.trim().split(/\s+/).map(Number);
+  if(rawPoly.some(isNaN)||rawPoly.length<1){
+    $('frobResult').innerHTML='<div class="warn">Coefficients invalides.</div>';return;
+  }
+  const p=parseInt($('pFrob').value);
+  const g=rawPoly;
+
+  // g(X)^p mod p
+  const gpow=polyPow(g,p,p);
+  // g(X^p) mod p
+  const gxp=polySubstXp(g,p);
+  // les deux doivent être égaux
+  // normaliser à même longueur pour comparaison
+  const maxLen=Math.max(gpow.length,gxp.length);
+  const A=[...new Array(maxLen-gpow.length).fill(0),...gpow];
+  const B=[...new Array(maxLen-gxp.length).fill(0),...gxp];
+  const equal=A.every((v,i)=>v===B[i]);
+
+  // Afficher les coefficients binomiaux
+  const binom=binomModP(p);
+  let binomHTML='<b>Coefficients binomiaux C('+p+',k) mod '+p+' :</b><br>';
+  binom.forEach(({k,b,modp})=>{
+    const cls=modp===0?'ok':'no';
+    binomHTML+=`<span class="badge ${cls}">C(${p},${k})=${b} ≡ ${modp}</span>`;
+  });
+
+  let html=`<div class="info">${binomHTML}</div>`;
+  html+=`<div style="margin:10px 0"><b>g(X) = </b><span class="mono">${polyStr(g)}</span>, p = ${p}</div>`;
+  html+=`<div style="display:flex;gap:20px;flex-wrap:wrap;margin:8px 0">`;
+  html+=`<div><b>g(X)<sup>${p}</sup> mod ${p} :</b><br><span class="mono">${polyStr(gpow)}</span></div>`;
+  html+=`<div><b>g(X<sup>${p}</sup>) mod ${p} :</b><br><span class="mono">${polyStr(gxp)}</span></div>`;
+  html+=`</div>`;
+  if(equal){
+    html+=`<div class="success"><b>Identique ✓</b> — g(X)<sup>${p}</sup> ≡ g(X<sup>${p}</sup>) mod ${p}. Les coefficients binomiaux C(${p},k) pour 0&lt;k&lt;${p} sont tous divisibles par ${p}.</div>`;
+  }else{
+    html+=`<div class="warn"><b>Non identiques.</b> Vérifier les coefficients.</div>`;
+  }
+  $('frobResult').innerHTML=html;
+}
+
+// =====================================================================
+// Section 2 : action sur les racines primitives
+// =====================================================================
+function computeAction(){
+  const n=parseInt($('nRoots').value);
+  const p=parseInt($('pAction').value);
+  const prims=coprimes(n);
+  const phi=prims.length;
+
+  // Table de permutation
+  let tableHTML=`<b>Racines primitives de l'unité d'ordre ${n} (pgcd(k,${n})=1)</b>`;
+  tableHTML+=`<br><b>σ<sub>${p}</sub> : k ↦ ${p}k mod ${n}</b><br><br>`;
+  tableHTML+='<table class="perm-table"><tr><th>k</th><th>ζ<sub>'+n+'</sub><sup>k</sup></th><th>σ<sub>'+p+'</sub>(k) = '+p+'k mod '+n+'</th><th>Primitive ?</th></tr>';
+
+  const sigma_p_of={};
+  prims.forEach(k=>{
+    const sk=mod(p*k,n);
+    sigma_p_of[k]=sk;
+    const is_prim=gcd(sk,n)===1;
+    tableHTML+=`<tr>
+      <td class="${gcd(k,n)===1?'prim':'notprim'}">${k}</td>
+      <td>ζ<sub>${n}</sub><sup>${k}</sup></td>
+      <td class="${is_prim?'prim':'notprim'}">${sk}</td>
+      <td>${is_prim?'✓ primitive':'✗ non primitive'}</td>
+    </tr>`;
+  });
+  tableHTML+='</table>';
+  tableHTML+=`<div class="small" style="margin-top:8px">σ<sub>${p}</sub> permute bien les ${phi} racines primitives d'ordre ${n} (car pgcd(${p},${n})=${gcd(p,n)}).</div>`;
+  $('actionTable').innerHTML=tableHTML;
+
+  // Dessin SVG des racines sur le cercle unité
+  const cx=160,cy=160,r=115;
+  let svg='<circle cx="'+cx+'" cy="'+cy+'" r="'+r+'" fill="none" stroke="#ddd" stroke-width="1.2"/>';
+  svg+=`<line x1="${cx-r-10}" y1="${cy}" x2="${cx+r+10}" y2="${cy}" stroke="#eee"/>`;
+  svg+=`<line x1="${cx}" y1="${cy-r-10}" x2="${cx}" y2="${cy+r+10}" stroke="#eee"/>`;
+  // Toutes les racines n-ièmes
+  for(let k=0;k<n;k++){
+    const ang=2*Math.PI*k/n-Math.PI/2;
+    const x=cx+r*Math.cos(ang),y=cy+r*Math.sin(ang);
+    const is_prim=gcd(k,n)===1;
+    if(is_prim){
+      svg+=`<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="8" fill="#d8f1e1" stroke="#0f5b55" stroke-width="2"/>`;
+      svg+=`<text x="${(x+(x>cx?10:-10)).toFixed(1)}" y="${(y+(y>cy?12:-6)).toFixed(1)}" text-anchor="${x>cx?'start':'end'}" font-size="11" font-weight="700" fill="#0f5b55">${k}</text>`;
+    }else{
+      svg+=`<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="5" fill="#f3f1ea" stroke="#bbb" stroke-width="1.2"/>`;
+      svg+=`<text x="${(x+(x>cx?8:-8)).toFixed(1)}" y="${(y+(y>cy?10:-4)).toFixed(1)}" text-anchor="${x>cx?'start':'end'}" font-size="10" fill="#aaa">${k}</text>`;
+    }
+  }
+  // Flèches de σ_p sur les racines primitives
+  const colors=['#0f5b55','#8a1d2c','#1d4f91','#c79b2b','#6b3fa0','#1a6b4a'];
+  prims.forEach((k,ci)=>{
+    const sk=sigma_p_of[k];
+    if(sk===k){
+      // point fixe : petit cercle additionnel
+      const ang=2*Math.PI*k/n-Math.PI/2;
+      const x=cx+r*Math.cos(ang),y=cy+r*Math.sin(ang);
+      svg+=`<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="13" fill="none" stroke="${colors[ci%colors.length]}" stroke-width="1.5" stroke-dasharray="3,2"/>`;
+      return;
+    }
+    const a1=2*Math.PI*k/n-Math.PI/2,a2=2*Math.PI*sk/n-Math.PI/2;
+    const x1=cx+(r-9)*Math.cos(a1),y1=cy+(r-9)*Math.sin(a1);
+    const x2=cx+(r-9)*Math.cos(a2),y2=cy+(r-9)*Math.sin(a2);
+    // courbe bezier
+    const mx=(x1+x2)/2-0.25*(y2-y1),my=(y1+y2)/2+0.25*(x2-x1);
+    svg+=`<path d="M${x1.toFixed(1)},${y1.toFixed(1)} Q${mx.toFixed(1)},${my.toFixed(1)} ${x2.toFixed(1)},${y2.toFixed(1)}" fill="none" stroke="${colors[ci%colors.length]}" stroke-width="1.7" marker-end="url(#arr${ci%colors.length})"/>`;
+  });
+  // Définir les marqueurs de flèches
+  let defs='<defs>';
+  colors.forEach((c,i)=>{
+    defs+=`<marker id="arr${i}" markerWidth="7" markerHeight="7" refX="6" refY="3" orient="auto"><path d="M0,0 L0,6 L7,3 z" fill="${c}"/></marker>`;
+  });
+  defs+='</defs>';
+  $('rootSvg').innerHTML=defs+svg;
+
+  // Orbite section 3
+  computeOrbit(n,p,prims,sigma_p_of);
+}
+
+// =====================================================================
+// Section 3 : orbite
+// =====================================================================
+function computeOrbit(n,p,prims,sigma_p_of){
+  // Orbite de 1 (ou du premier primitif) sous sigma_p
+  const start=prims[0]; // = 1 si n > 1
+  const orbit=[start];
+  let cur=start;
+  for(let i=0;i<prims.length+1;i++){
+    cur=sigma_p_of[cur];
+    if(cur===start)break;
+    orbit.push(cur);
+  }
+  const isFullOrbit=orbit.length===prims.length;
+  let html=`<div class="info"><b>Orbite de ζ<sub>${n}</sub><sup>1</sup> = ζ<sub>${n}</sub> sous les itérés de σ<sub>${p}</sub> :</b><br>`;
+  html+=orbit.map((k,i)=>`ζ<sub>${n}</sub><sup>${k}</sup>`).join(' → ')+'  → (retour à ζ<sub>'+n+'</sub><sup>'+start+'</sup>)';
+  html+='<br><b>Longueur de l\'orbite : '+orbit.length+'</b> | Nombre de primitives φ('+n+') = '+prims.length+'</div>';
+  if(isFullOrbit){
+    html+=`<div class="success"><b>Orbite totale ✓ —</b> σ<sub>${p}</sub> est <em>transitif</em> sur les racines primitives d'ordre ${n}. Conséquence : Φ<sub>${n}</sub> est irréductible mod ${p}, ce qui contribue à l'irréductibilité de Φ<sub>${n}</sub> sur ℚ.</div>`;
+  }else{
+    html+=`<div class="warn"><b>Orbite partielle.</b> L'orbite de 1 ne couvre que ${orbit.length} des ${prims.length} racines primitives pour p = ${p}. Choisir un autre premier p pour obtenir la transitivité.</div>`;
+    // suggérer un p transitif
+    const goodP=[];
+    for(let q=2;q<=50;q++){
+      if(!isPrime(q)||gcd(q,n)!==1)continue;
+      // tester la transitivité
+      const visited=new Set();let c=1;
+      while(!visited.has(c)){visited.add(c);c=mod(q*c,n);}
+      if(visited.size===prims.length)goodP.push(q);
+      if(goodP.length>=4)break;
+    }
+    if(goodP.length)html+=`<div class="info">Premiers donnant une orbite totale (transitifs) pour n=${n} : <b>${goodP.join(', ')}</b></div>`;
+  }
+  $('orbitResult').innerHTML=html;
+}
+
+const $=id=>document.getElementById(id);
+$('goFrob').onclick=computeFrob;
+$('goAction').onclick=computeAction;
+
+// Synchroniser les sélecteurs p
+$('nRoots').onchange=()=>{
+  // remplir pAction avec les premiers != n
+  const n=parseInt($('nRoots').value);
+  const sel=$('pAction');
+  const cur=parseInt(sel.value);
+  sel.innerHTML='';
+  [2,3,5,7,11,13,17,19].forEach(q=>{
+    if(gcd(q,n)===1){
+      const opt=document.createElement('option');
+      opt.value=q;opt.textContent=q;
+      if(q===cur)opt.selected=true;
+      sel.appendChild(opt);
+    }
+  });
+  computeAction();
+};
+
+computeFrob();
+computeAction();
+</script>
+</body></html>
